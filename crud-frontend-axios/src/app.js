@@ -5,7 +5,7 @@ import { updateProduct, patchProduct } from './scripts/api/update.js';
 
 const apiUrl = 'http://localhost:8000/api/products';
 
-// Referências do DOM
+// Referências do DOM — form principal
 const form = document.getElementById('create-product-form');
 const formError = document.getElementById('form-error');
 const formTitle = document.getElementById('form-title');
@@ -13,9 +13,26 @@ const submitBtn = form.querySelector('button[type="submit"]');
 const cancelBtn = document.getElementById('cancel-edit');
 const productsSection = document.getElementById('products');
 
+// Referências do DOM — busca
+const searchForm = document.getElementById('search-form');
+const searchInput = document.getElementById('search-input');
+const clearSearchBtn = document.getElementById('clear-search');
+
+// Referências do DOM — modal de exclusão
+const deleteModalEl = document.getElementById('delete-modal');
+const deleteModal = new bootstrap.Modal(deleteModalEl);
+const deleteModalProductName = document.getElementById('delete-modal-product-name');
+const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+
 // Estado de edição
 let editingId = null;
 let originalProduct = null;
+
+// Mantém o termo de busca atual, pra não perder o filtro após create/update/delete
+let currentSearch = '';
+
+// Produto aguardando confirmação de exclusão no modal
+let pendingDeleteId = null;
 
 // --- Helpers de erro ---
 function showError(message) {
@@ -58,8 +75,21 @@ function exitEditMode() {
 
 cancelBtn.addEventListener('click', exitEditMode);
 
+// --- Busca por query string ---
+searchForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    currentSearch = searchInput.value.trim();
+    renderProducts(apiUrl, currentSearch);
+});
+
+clearSearchBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    currentSearch = '';
+    renderProducts(apiUrl, currentSearch);
+});
+
 // --- Delegação de eventos nos cards ---
-productsSection.addEventListener('click', async (event) => {
+productsSection.addEventListener('click', (event) => {
     const { target } = event;
 
     if (target.dataset.action === 'edit') {
@@ -68,15 +98,26 @@ productsSection.addEventListener('click', async (event) => {
 
     if (target.dataset.action === 'delete') {
         const product = getProductFromCard(target);
-        if (!confirm('Are you sure you want to delete this product?')) return;
+        pendingDeleteId = product.id;
+        deleteModalProductName.textContent = product.name;
+        deleteModal.show();
+    }
+});
 
-        try {
-            await deleteProduct(apiUrl, product.id);
-            if (editingId === product.id) exitEditMode();
-            renderProducts(apiUrl);
-        } catch (error) {
-            showError(error.message);
-        }
+// --- Confirmação de exclusão vinda do modal ---
+confirmDeleteBtn.addEventListener('click', async () => {
+    if (pendingDeleteId === null) return;
+
+    try {
+        await deleteProduct(apiUrl, pendingDeleteId);
+        if (editingId === pendingDeleteId) exitEditMode();
+        deleteModal.hide();
+        renderProducts(apiUrl, currentSearch);
+    } catch (error) {
+        deleteModal.hide();
+        showError(error.message);
+    } finally {
+        pendingDeleteId = null;
     }
 });
 
@@ -93,7 +134,6 @@ form.addEventListener('submit', async (event) => {
 
     try {
         if (editingId !== null) {
-            // MODO EDIÇÃO — descobre o que mudou
             const changed = {};
             if (name !== originalProduct.name) changed.name = name;
             if (Number(price) !== originalProduct.price) changed.price = price;
@@ -112,12 +152,11 @@ form.addEventListener('submit', async (event) => {
                 await patchProduct(apiUrl, editingId, changed);
             }
         } else {
-            // MODO CRIAÇÃO
             await createProduct(apiUrl, { name, price, stock, category });
         }
 
         exitEditMode();
-        renderProducts(apiUrl);
+        renderProducts(apiUrl, currentSearch);
     } catch (error) {
         showError(error.message);
     }

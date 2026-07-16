@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-export async function getProducts(apiUrl) {
+export async function getProducts(apiUrl, nameFilter = '') {
     try {
-        const response = await axios.get(apiUrl);
+        const query = nameFilter ? `?name=${encodeURIComponent(nameFilter)}` : '';
+        const response = await axios.get(`${apiUrl}${query}`);
         return response.data.products;
     } catch (error) {
         const message = error.response?.data?.error || 'Failed to load products';
