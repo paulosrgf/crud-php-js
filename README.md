@@ -99,7 +99,3 @@ projeto-crud-php-js/
 - Testes automatizados
 - Migração de SQLite para um banco cliente-servidor (MySQL/PostgreSQL)
 - Paginação na listagem de produtos
-
-Uma observação: ajustei a seção "Como rodar" pra portas 8000 (backend) e 8080 (frontend), que foi o que usamos nas correções — confirma se são essas mesmas antes de colar, caso você tenha mudado algo depois.
-
-Quer ser notificado quando Claude responder?
